@@ -80,11 +80,22 @@
     const boton = document.getElementById("guardar");
 
     if (notaId) {
-      // Cargar nota existente
       const docRef = doc(db, "notas", notaId);
       getDoc(docRef).then((docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
+          const fechaCreacion = new Date(data.fechaCreacion);
+          const ahora = new Date();
+          const expiracionMs = calcularExpiracionMs(data.expiracion || "1d");
+
+          if (ahora - fechaCreacion > expiracionMs) {
+            document.body.innerHTML = `
+              <h1>🕒 Nota expirada</h1>
+              <p>Esta nota ha caducado y ya no puede visualizarse ni editarse.</p>
+            `;
+            return;
+          }
+
           tituloInput.value = data.titulo || "";
           contenidoInput.value = data.contenido || "";
           expiraSelect.value = data.expiracion || "1d";
@@ -92,6 +103,17 @@
           alert("Esta nota no existe.");
         }
       });
+    }
+
+    function calcularExpiracionMs(valor) {
+      const mapa = {
+        "1h": 3600000,
+        "1d": 86400000,
+        "1w": 604800000,
+        "1m": 2592000000,
+        "1y": 31536000000
+      };
+      return mapa[valor] || 86400000;
     }
 
     function generarID(longitud = 20) {
