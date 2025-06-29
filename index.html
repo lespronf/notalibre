@@ -50,13 +50,13 @@
     <option value="1m">1 mes</option>
     <option value="1y">1 año</option>
   </select>
-  <button>Guardar y generar enlace</button>
+  <button id="guardar">Guardar nota</button>
 
   <div id="resultado" class="link-box" style="display:none;"></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC1pQf_Fj5wWigda38uVoOTGto7YJC0VOg",
@@ -70,6 +70,30 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    const params = new URLSearchParams(window.location.search);
+    const notaId = params.get("id");
+
+    const tituloInput = document.getElementById("titulo");
+    const contenidoInput = document.getElementById("contenido");
+    const expiraSelect = document.getElementById("expira");
+    const resultadoDiv = document.getElementById("resultado");
+    const boton = document.getElementById("guardar");
+
+    if (notaId) {
+      // Cargar nota existente
+      const docRef = doc(db, "notas", notaId);
+      getDoc(docRef).then((docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          tituloInput.value = data.titulo || "";
+          contenidoInput.value = data.contenido || "";
+          expiraSelect.value = data.expiracion || "1d";
+        } else {
+          alert("Esta nota no existe.");
+        }
+      });
+    }
+
     function generarID(longitud = 20) {
       const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
       let id = '';
@@ -79,18 +103,17 @@
       return id;
     }
 
-    const boton = document.querySelector("button");
     boton.addEventListener("click", async () => {
-      const titulo = document.getElementById('titulo').value.trim();
-      const contenido = document.getElementById('contenido').value.trim();
-      const expiracion = document.getElementById('expira').value;
+      const titulo = tituloInput.value.trim();
+      const contenido = contenidoInput.value.trim();
+      const expiracion = expiraSelect.value;
 
       if (!contenido) {
-        alert('Por favor escribe algo en la nota.');
+        alert("Por favor escribe algo en la nota.");
         return;
       }
 
-      const id = generarID();
+      const id = notaId || generarID();
       const fechaCreacion = new Date().toISOString();
 
       try {
@@ -101,10 +124,9 @@
           fechaCreacion
         });
 
-        const enlace = `nota.html?id=${id}`;
-        const resultado = document.getElementById('resultado');
-        resultado.innerHTML = `<strong>Tu enlace:</strong><br><a href="${enlace}" target="_blank">${enlace}</a>`;
-        resultado.style.display = 'block';
+        const enlace = `${location.origin}${location.pathname}?id=${id}`;
+        resultadoDiv.innerHTML = `<strong>Tu enlace:</strong><br><a href="${enlace}" target="_blank">${enlace}</a>`;
+        resultadoDiv.style.display = "block";
       } catch (e) {
         console.error("Error al guardar la nota:", e);
         alert("Ocurrió un error al guardar la nota.");
