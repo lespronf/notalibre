@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NotaLibre</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #fefefe;
+      padding: 2rem;
+      max-width: 600px;
+      margin: auto;
+    }
+    h1 { text-align: center; color: #2c3e50; }
+    input, textarea, select, button {
+      width: 100%;
+      margin-top: 1rem;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      background-color: #3498db;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    .link-box {
+      margin-top: 1.5rem;
+      background: #ecf0f1;
+      padding: 1rem;
+      border-radius: 6px;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+  <h1>📝 NotaLibre</h1>
+  <input type="text" id="titulo" placeholder="Título de la nota" />
+  <textarea id="contenido" rows="10" placeholder="Escribe tu nota aquí..."></textarea>
+  <label for="expira">¿Cuánto tiempo debe durar esta nota?</label>
+  <select id="expira">
+    <option value="1h">1 hora</option>
+    <option value="1d">1 día</option>
+    <option value="1w">1 semana</option>
+    <option value="1m">1 mes</option>
+    <option value="1y">1 año</option>
+  </select>
+  <button onclick="guardarNota()">Guardar y generar enlace</button>
+
+  <div id="resultado" class="link-box" style="display:none;"></div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    // Tu configuración de Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyC1pQf_Fj5wWigda38uVoOTGto7YJC0VOg",
+      authDomain: "notalibre-b5cc0.firebaseapp.com",
+      projectId: "notalibre-b5cc0",
+      storageBucket: "notalibre-b5cc0.appspot.com",
+      messagingSenderId: "822206741924",
+      appId: "1:822206741924:web:d36c425fd24b5766fcd531"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    function generarID(longitud = 20) {
+      const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let id = '';
+      for (let i = 0; i < longitud; i++) {
+        id += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return id;
+    }
+
+    async function guardarNota() {
+      const titulo = document.getElementById('titulo').value.trim();
+      const contenido = document.getElementById('contenido').value.trim();
+      const expiracion = document.getElementById('expira').value;
+
+      if (!contenido) {
+        alert('Por favor escribe algo en la nota.');
+        return;
+      }
+
+      const id = generarID();
+      const fechaCreacion = new Date().toISOString();
+
+      await db.collection("notas").doc(id).set({
+        titulo,
+        contenido,
+        expiracion,
+        fechaCreacion
+      });
+
+      const enlace = `nota.html?id=${id}`;
+      const resultado = document.getElementById('resultado');
+      resultado.innerHTML = `<strong>Tu enlace:</strong><br><a href="${enlace}" target="_blank">${enlace}</a>`;
+      resultado.style.display = 'block';
+    }
+  </script>
+</body>
+</html>

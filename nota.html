@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ver Nota - NotaLibre</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #fefefe;
+      padding: 2rem;
+      max-width: 600px;
+      margin: auto;
+    }
+    h1 { color: #2c3e50; }
+    .nota-box {
+      background: #ecf0f1;
+      padding: 1rem;
+      border-radius: 6px;
+      margin-top: 1rem;
+      white-space: pre-wrap;
+    }
+    .error {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>📄 NotaLibre</h1>
+  <div id="contenido">Cargando nota...</div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    // Tu configuración de Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyC1pQf_Fj5wWigda38uVoOTGto7YJC0VOg",
+      authDomain: "notalibre-b5cc0.firebaseapp.com",
+      projectId: "notalibre-b5cc0",
+      storageBucket: "notalibre-b5cc0.appspot.com",
+      messagingSenderId: "822206741924",
+      appId: "1:822206741924:web:d36c425fd24b5766fcd531"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    function obtenerParametro(nombre) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(nombre);
+    }
+
+    const id = obtenerParametro('id');
+    const contenedor = document.getElementById('contenido');
+
+    if (!id) {
+      contenedor.innerHTML = '<p class="error">❌ No se proporcionó ningún ID de nota.</p>';
+    } else {
+      db.collection("notas").doc(id).get().then((doc) => {
+        if (!doc.exists) {
+          contenedor.innerHTML = '<p class="error">⚠️ No se encontró ninguna nota con ese ID.</p>';
+        } else {
+          const nota = doc.data();
+          contenedor.innerHTML = `
+            <h2>${nota.titulo || 'Sin título'}</h2>
+            <div class="nota-box">${nota.contenido}</div>
+            <p><em>Creada el: ${new Date(nota.fechaCreacion).toLocaleString()}</em></p>
+          `;
+        }
+      }).catch((error) => {
+        contenedor.innerHTML = `<p class="error">❌ Error al cargar la nota: ${error.message}</p>`;
+      });
+    }
+  </script>
+</body>
+</html>
