@@ -36,6 +36,11 @@
       border-radius: 6px;
       word-break: break-word;
     }
+    #mensajeCopiado {
+      color: green;
+      margin-top: 0.5rem;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -147,8 +152,23 @@
         });
 
         const enlace = `${location.origin}${location.pathname}?id=${id}`;
-        resultadoDiv.innerHTML = `<strong>Tu enlace:</strong><br><a href="${enlace}" target="_blank">${enlace}</a>`;
+        resultadoDiv.innerHTML = `
+          <strong>Tu enlace:</strong><br>
+          <a href="${enlace}" target="_blank">${enlace}</a><br><br>
+          <button id="copiarEnlace">📋 Copiar enlace</button>
+          <p id="mensajeCopiado">✅ Enlace copiado</p>
+        `;
         resultadoDiv.style.display = "block";
+
+        document.getElementById("copiarEnlace").addEventListener("click", () => {
+          navigator.clipboard.writeText(enlace).then(() => {
+            const mensaje = document.getElementById("mensajeCopiado");
+            mensaje.style.display = "block";
+            setTimeout(() => {
+              mensaje.style.display = "none";
+            }, 2000);
+          });
+        });
       } catch (e) {
         console.error("Error al guardar la nota:", e);
         alert("Ocurrió un error al guardar la nota.");
