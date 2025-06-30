@@ -232,7 +232,7 @@
             contentType: archivo.type
           };
 
-          const archivoRef = ref(storage, `archivos/${id}.${ext}`);
+          const archivoRef = ref(storage, `gs://notalibre-b5cc0.firebasestorage.app/archivos/${id}.${ext}`);
           const uploadTask = uploadBytesResumable(archivoRef, archivo, metadata);
 
           await new Promise((resolve, reject) => {
