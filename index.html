@@ -86,7 +86,7 @@
   <input type="text" id="titulo" placeholder="Título de la nota" />
   <textarea id="contenido" rows="10" placeholder="Escribe tu nota aquí..."></textarea>
   <input type="password" id="clave" placeholder="Contraseña (opcional)" />
-  <input type="file" id="archivo" accept=".pdf,image/*" />
+  <input type="file" id="archivo" accept=".jpg,.jpeg,.png,.gif,.pdf,.mp4,.webm,.mov" />
   <small>Máximo 5 MB. Solo PDF o imágenes.</small>
   <label for="expira">¿Cuánto tiempo debe durar esta nota?</label>
   <select id="expira">
@@ -220,10 +220,10 @@
       }
 
       const ext = archivo.name.split('.').pop().toLowerCase();
-      if (!["pdf", "jpg", "jpeg", "png", "gif", "webp"].includes(ext)) {
-        alert("Solo se permiten imágenes o archivos PDF.");
-        return;
-      }
+      if (!["pdf", "jpg", "jpeg", "png", "gif", "webp", "mp4", "webm", "mov"].includes(ext)) {
+  alert("Solo se permiten imágenes, archivos PDF o videos cortos (mp4, webm, mov).");
+  return;
+}
 
       const archivoRef = ref(storage, `archivos/${id}.${ext}`);
       const snapshot = await uploadBytes(archivoRef, archivo);
