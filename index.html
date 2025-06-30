@@ -227,7 +227,6 @@
 
   const metadata = {
     contentType: archivo.type
-  };
 
   const archivoRef = ref(storage, `archivos/${id}.${ext}`);
   const snapshot = await uploadBytes(archivoRef, archivo, metadata);
