@@ -5,14 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>NotaLibre</title>
   <style>
+    :root {
+      --bg: #fefefe;
+      --text: #2c3e50;
+      --input-bg: #fff;
+      --button-bg: #3498db;
+      --button-hover: #2980b9;
+      --link-box: #ecf0f1;
+    }
+
+    body.dark {
+      --bg: #1e1e1e;
+      --text: #f0f0f0;
+      --input-bg: #2c2c2c;
+      --button-bg: #5555ff;
+      --button-hover: #3333cc;
+      --link-box: #333;
+    }
+
     body {
       font-family: 'Segoe UI', sans-serif;
-      background: #fefefe;
+      background: var(--bg);
+      color: var(--text);
       padding: 2rem;
       max-width: 600px;
       margin: auto;
+      transition: background 0.3s, color 0.3s;
     }
-    h1 { text-align: center; color: #2c3e50; }
+
+    h1 { text-align: center; }
     input, textarea, select, button {
       width: 100%;
       margin-top: 1rem;
@@ -20,33 +41,51 @@
       font-size: 1rem;
       border: 1px solid #ccc;
       border-radius: 6px;
+      background: var(--input-bg);
+      color: var(--text);
     }
+
     button {
-      background-color: #3498db;
+      background-color: var(--button-bg);
       color: white;
       cursor: pointer;
     }
+
     button:hover {
-      background-color: #2980b9;
+      background-color: var(--button-hover);
     }
+
     .link-box {
       margin-top: 1.5rem;
-      background: #ecf0f1;
+      background: var(--link-box);
       padding: 1rem;
       border-radius: 6px;
       word-break: break-word;
     }
+
     #mensajeCopiado {
       color: green;
       margin-top: 0.5rem;
       display: none;
     }
+
+    #modoOscuroBtn {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
+  <button id="modoOscuroBtn">🌙</button>
   <h1>📝 NotaLibre</h1>
   <input type="text" id="titulo" placeholder="Título de la nota" />
   <textarea id="contenido" rows="10" placeholder="Escribe tu nota aquí..."></textarea>
+  <input type="password" id="clave" placeholder="Contraseña (opcional)" />
   <label for="expira">¿Cuánto tiempo debe durar esta nota?</label>
   <select id="expira">
     <option value="1h">1 hora</option>
@@ -80,13 +119,14 @@
 
     const tituloInput = document.getElementById("titulo");
     const contenidoInput = document.getElementById("contenido");
+    const claveInput = document.getElementById("clave");
     const expiraSelect = document.getElementById("expira");
     const resultadoDiv = document.getElementById("resultado");
     const boton = document.getElementById("guardar");
 
     if (notaId) {
       const docRef = doc(db, "notas", notaId);
-      getDoc(docRef).then((docSnap) => {
+      getDoc(docRef).then(async (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           const fechaCreacion = new Date(data.fechaCreacion);
@@ -94,11 +134,17 @@
           const expiracionMs = calcularExpiracionMs(data.expiracion || "1d");
 
           if (ahora - fechaCreacion > expiracionMs) {
-            document.body.innerHTML = `
-              <h1>🕒 Nota expirada</h1>
-              <p>Esta nota ha caducado y ya no puede visualizarse ni editarse.</p>
-            `;
+            document.body.innerHTML = `<h1>🕒 Nota expirada</h1><p>Esta nota ha caducado y ya no puede visualizarse ni editarse.</p>`;
             return;
+          }
+
+          if (data.claveHash) {
+            const claveIngresada = prompt("🔒 Esta nota está protegida. Ingresa la contraseña:");
+            const hash = await sha256(claveIngresada || "");
+            if (hash !== data.claveHash) {
+              document.body.innerHTML = `<h1>🚫 Acceso denegado</h1><p>La contraseña es incorrecta.</p>`;
+              return;
+            }
           }
 
           tituloInput.value = data.titulo || "";
@@ -130,10 +176,18 @@
       return id;
     }
 
+    async function sha256(texto) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(texto);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
     boton.addEventListener("click", async () => {
       const titulo = tituloInput.value.trim();
       const contenido = contenidoInput.value.trim();
       const expiracion = expiraSelect.value;
+      const clave = claveInput.value.trim();
 
       if (!contenido) {
         alert("Por favor escribe algo en la nota.");
@@ -142,13 +196,15 @@
 
       const id = notaId || generarID();
       const fechaCreacion = new Date().toISOString();
+      const claveHash = clave ? await sha256(clave) : null;
 
       try {
         await setDoc(doc(db, "notas", id), {
           titulo,
           contenido,
           expiracion,
-          fechaCreacion
+          fechaCreacion,
+          ...(claveHash && { claveHash })
         });
 
         const enlace = `${location.origin}${location.pathname}?id=${id}`;
@@ -174,6 +230,8 @@
         alert("Ocurrió un error al guardar la nota.");
       }
     });
-  </script>
-</body>
-</html>
+
+    // 🌙 Modo oscuro
+    const btnModo = document.getElementById("modoOscuroBtn");
+    const estadoGuardado = localStorage.getItem("modoOscuro");
+    if (estadoGuardado === "true") document.body.classList.add("dark
