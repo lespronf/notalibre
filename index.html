@@ -226,8 +226,25 @@
 }
 
       const archivoRef = ref(storage, `archivos/${id}.${ext}`);
-      const snapshot = await uploadBytes(archivoRef, archivo);
-      archivoURL = await getDownloadURL(snapshot.ref);
+      import { uploadBytesResumable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+const metadata = {
+  contentType: archivo.type
+};
+
+const uploadTask = uploadBytesResumable(archivoRef, archivo, metadata);
+
+await new Promise((resolve, reject) => {
+  uploadTask.on(
+    "state_changed",
+    null,
+    (error) => reject(error),
+    async () => {
+      archivoURL = await getDownloadURL(uploadTask.snapshot.ref);
+      resolve();
+    }
+  );
+});
     }
 
     try {
