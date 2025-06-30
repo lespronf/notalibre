@@ -214,48 +214,25 @@
     const claveHash = clave ? await sha256(clave) : null;
 
     if (archivo) {
-      if (archivo.size > 5 * 1024 * 1024) {
-        alert("El archivo excede los 5 MB permitidos.");
-        return;
-      }
+  if (archivo.size > 5 * 1024 * 1024) {
+    alert("El archivo excede los 5 MB permitidos.");
+    return;
+  }
 
-      const ext = archivo.name.split('.').pop().toLowerCase();
-      if (!["pdf", "jpg", "jpeg", "png", "gif", "webp", "mp4", "webm", "mov"].includes(ext)) {
-  alert("Solo se permiten imágenes, archivos PDF o videos cortos (mp4, webm, mov).");
-  return;
+  const ext = archivo.name.split('.').pop().toLowerCase();
+  if (!["pdf", "jpg", "jpeg", "png", "gif", "webp", "mp4", "webm", "mov"].includes(ext)) {
+    alert("Solo se permiten imágenes, archivos PDF o videos cortos (mp4, webm, mov).");
+    return;
+  }
+
+  const metadata = {
+    contentType: archivo.type
+  };
+
+  const archivoRef = ref(storage, `archivos/${id}.${ext}`);
+  const snapshot = await uploadBytes(archivoRef, archivo, metadata);
+  archivoURL = await getDownloadURL(snapshot.ref);
 }
-
-      const archivoRef = ref(storage, `archivos/${id}.${ext}`);
-
-const archivoRef = ref(storage, `archivos/${id}.${ext}`);
-const snapshot = await uploadBytes(archivoRef, archivo, metadata);
-archivoURL = await getDownloadURL(snapshot.ref);
-};
-
-const uploadTask = uploadBytesResumable(archivoRef, archivo, metadata);
-
-await new Promise((resolve, reject) => {
-  uploadTask.on(
-    "state_changed",
-    null,
-    (error) => reject(error),
-    async () => {
-      archivoURL = await getDownloadURL(uploadTask.snapshot.ref);
-      resolve();
-    }
-  );
-});
-    }
-
-    try {
-      await setDoc(doc(db, "notas", id), {
-        titulo,
-        contenido,
-        expiracion,
-        fechaCreacion,
-        ...(claveHash && { claveHash }),
-        ...(archivoURL && { archivoURL })
-      });
 
       const enlace = `${location.origin}${location.pathname}?id=${id}`;
       resultadoDiv.innerHTML = `
