@@ -86,6 +86,8 @@
   <input type="text" id="titulo" placeholder="Título de la nota" />
   <textarea id="contenido" rows="10" placeholder="Escribe tu nota aquí..."></textarea>
   <input type="password" id="clave" placeholder="Contraseña (opcional)" />
+  <input type="file" id="archivo" accept=".pdf,image/*" />
+  <small>Máximo 5 MB. Solo PDF o imágenes.</small>
   <label for="expira">¿Cuánto tiempo debe durar esta nota?</label>
   <select id="expira">
     <option value="1h">1 hora</option>
@@ -97,153 +99,184 @@
   <button id="guardar">Guardar nota</button>
 
   <div id="resultado" class="link-box" style="display:none;"></div>
-    <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyC1pQf_Fj5wWigda38uVoOTGto7YJC0VOg",
-      authDomain: "notalibre-b5cc0.firebaseapp.com",
-      projectId: "notalibre-b5cc0",
-      storageBucket: "notalibre-b5cc0.appspot.com",
-      messagingSenderId: "822206741924",
-      appId: "1:822206741924:web:d36c425fd24b5766fcd531"
-    };
+  const firebaseConfig = {
+    apiKey: "AIzaSyC1pQf_Fj5wWigda38uVoOTGto7YJC0VOg",
+    authDomain: "notalibre-b5cc0.firebaseapp.com",
+    projectId: "notalibre-b5cc0",
+    storageBucket: "notalibre-b5cc0.appspot.com",
+    messagingSenderId: "822206741924",
+    appId: "1:822206741924:web:d36c425fd24b5766fcd531"
+  };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
 
-    const params = new URLSearchParams(window.location.search);
-    const notaId = params.get("id");
+  const params = new URLSearchParams(window.location.search);
+  const notaId = params.get("id");
 
-    const tituloInput = document.getElementById("titulo");
-    const contenidoInput = document.getElementById("contenido");
-    const claveInput = document.getElementById("clave");
-    const expiraSelect = document.getElementById("expira");
-    const resultadoDiv = document.getElementById("resultado");
-    const boton = document.getElementById("guardar");
+  const tituloInput = document.getElementById("titulo");
+  const contenidoInput = document.getElementById("contenido");
+  const claveInput = document.getElementById("clave");
+  const archivoInput = document.getElementById("archivo");
+  const expiraSelect = document.getElementById("expira");
+  const resultadoDiv = document.getElementById("resultado");
+  const boton = document.getElementById("guardar");
 
-    if (notaId) {
-      const docRef = doc(db, "notas", notaId);
-      getDoc(docRef).then(async (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const fechaCreacion = new Date(data.fechaCreacion);
-          const ahora = new Date();
-          const expiracionMs = calcularExpiracionMs(data.expiracion || "1d");
+  if (notaId) {
+    const docRef = doc(db, "notas", notaId);
+    getDoc(docRef).then(async (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const fechaCreacion = new Date(data.fechaCreacion);
+        const ahora = new Date();
+        const expiracionMs = calcularExpiracionMs(data.expiracion || "1d");
 
-          if (ahora - fechaCreacion > expiracionMs) {
-            document.body.innerHTML = `<h1>🕒 Nota expirada</h1><p>Esta nota ha caducado y ya no puede visualizarse ni editarse.</p>`;
+        if (ahora - fechaCreacion > expiracionMs) {
+          document.body.innerHTML = `<h1>🕒 Nota expirada</h1><p>Esta nota ha caducado y ya no puede visualizarse ni editarse.</p>`;
+          return;
+        }
+
+        if (data.claveHash) {
+          const claveIngresada = prompt("🔒 Esta nota está protegida. Ingresa la contraseña:");
+          const hash = await sha256(claveIngresada || "");
+          if (hash !== data.claveHash) {
+            document.body.innerHTML = `<h1>🚫 Acceso denegado</h1><p>La contraseña es incorrecta.</p>`;
             return;
           }
-
-          if (data.claveHash) {
-            const claveIngresada = prompt("🔒 Esta nota está protegida. Ingresa la contraseña:");
-            const hash = await sha256(claveIngresada || "");
-            if (hash !== data.claveHash) {
-              document.body.innerHTML = `<h1>🚫 Acceso denegado</h1><p>La contraseña es incorrecta.</p>`;
-              return;
-            }
-          }
-
-          tituloInput.value = data.titulo || "";
-          contenidoInput.value = data.contenido || "";
-          expiraSelect.value = data.expiracion || "1d";
-        } else {
-          alert("Esta nota no existe.");
         }
-      });
-    }
 
-    function calcularExpiracionMs(valor) {
-      const mapa = {
-        "1h": 3600000,
-        "1d": 86400000,
-        "1w": 604800000,
-        "1m": 2592000000,
-        "1y": 31536000000
-      };
-      return mapa[valor] || 86400000;
-    }
+        tituloInput.value = data.titulo || "";
+        contenidoInput.value = data.contenido || "";
+        expiraSelect.value = data.expiracion || "1d";
 
-    function generarID(longitud = 20) {
-      const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-      let id = '';
-      for (let i = 0; i < longitud; i++) {
-        id += chars.charAt(Math.floor(Math.random() * chars.length));
+        if (data.archivoURL) {
+          const ext = data.archivoURL.split('.').pop().split('?')[0].toLowerCase();
+          if (ext === "pdf") {
+            resultadoDiv.innerHTML += `<p><strong>Archivo adjunto:</strong><br><a href="${data.archivoURL}" target="_blank">Ver PDF</a></p>`;
+          } else {
+            resultadoDiv.innerHTML += `<p><strong>Imagen adjunta:</strong><br><img src="${data.archivoURL}" style="max-width:100%; border:1px solid #ccc; border-radius:6px;" /></p>`;
+          }
+        }
+      } else {
+        alert("Esta nota no existe.");
       }
-      return id;
+    });
+  }
+
+  function calcularExpiracionMs(valor) {
+    const mapa = {
+      "1h": 3600000,
+      "1d": 86400000,
+      "1w": 604800000,
+      "1m": 2592000000,
+      "1y": 31536000000
+    };
+    return mapa[valor] || 86400000;
+  }
+
+  function generarID(longitud = 20) {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let id = '';
+    for (let i = 0; i < longitud; i++) {
+      id += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return id;
+  }
+
+  async function sha256(texto) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(texto);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  boton.addEventListener("click", async () => {
+    const titulo = tituloInput.value.trim();
+    const contenido = contenidoInput.value.trim();
+    const expiracion = expiraSelect.value;
+    const clave = claveInput.value.trim();
+    const archivo = archivoInput.files[0];
+    let archivoURL = null;
+
+    if (!contenido) {
+      alert("Por favor escribe algo en la nota.");
+      return;
     }
 
-    async function sha256(texto) {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(texto);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-    }
+    const id = notaId || generarID();
+    const fechaCreacion = new Date().toISOString();
+    const claveHash = clave ? await sha256(clave) : null;
 
-    boton.addEventListener("click", async () => {
-      const titulo = tituloInput.value.trim();
-      const contenido = contenidoInput.value.trim();
-      const expiracion = expiraSelect.value;
-      const clave = claveInput.value.trim();
-
-      if (!contenido) {
-        alert("Por favor escribe algo en la nota.");
+    if (archivo) {
+      if (archivo.size > 5 * 1024 * 1024) {
+        alert("El archivo excede los 5 MB permitidos.");
         return;
       }
 
-      const id = notaId || generarID();
-      const fechaCreacion = new Date().toISOString();
-      const claveHash = clave ? await sha256(clave) : null;
-
-      try {
-        await setDoc(doc(db, "notas", id), {
-          titulo,
-          contenido,
-          expiracion,
-          fechaCreacion,
-          ...(claveHash && { claveHash })
-        });
-
-        const enlace = `${location.origin}${location.pathname}?id=${id}`;
-        resultadoDiv.innerHTML = `
-          <strong>Tu enlace:</strong><br>
-          <a href="${enlace}" target="_blank">${enlace}</a><br><br>
-          <button id="copiarEnlace">📋 Copiar enlace</button>
-          <p id="mensajeCopiado">✅ Enlace copiado</p>
-        `;
-        resultadoDiv.style.display = "block";
-
-        document.getElementById("copiarEnlace").addEventListener("click", () => {
-          navigator.clipboard.writeText(enlace).then(() => {
-            const mensaje = document.getElementById("mensajeCopiado");
-            mensaje.style.display = "block";
-            setTimeout(() => {
-              mensaje.style.display = "none";
-            }, 2000);
-          });
-        });
-      } catch (e) {
-        console.error("Error al guardar la nota:", e);
-        alert("Ocurrió un error al guardar la nota.");
+      const ext = archivo.name.split('.').pop().toLowerCase();
+      if (!["pdf", "jpg", "jpeg", "png", "gif", "webp"].includes(ext)) {
+        alert("Solo se permiten imágenes o archivos PDF.");
+        return;
       }
-    });
 
-    // 🌙 Modo oscuro
-    const btnModo = document.getElementById("modoOscuroBtn");
-    const estadoGuardado = localStorage.getItem("modoOscuro");
-    if (estadoGuardado === "true") {
-      document.body.classList.add("dark");
-      btnModo.textContent = "☀️";
+      const archivoRef = ref(storage, `archivos/${id}.${ext}`);
+      const snapshot = await uploadBytes(archivoRef, archivo);
+      archivoURL = await getDownloadURL(snapshot.ref);
     }
 
-    btnModo.addEventListener("click", () => {
-      document.body.classList.toggle("dark");
-      const oscuro = document.body.classList.contains("dark");
-      localStorage.setItem("modoOscuro", oscuro);
-      btnModo.textContent = oscuro ? "☀️" : "🌙";
-    });
-  </script>
+    try {
+      await setDoc(doc(db, "notas", id), {
+        titulo,
+        contenido,
+        expiracion,
+        fechaCreacion,
+        ...(claveHash && { claveHash }),
+        ...(archivoURL && { archivoURL })
+      });
+
+      const enlace = `${location.origin}${location.pathname}?id=${id}`;
+      resultadoDiv.innerHTML = `
+        <strong>Tu enlace:</strong><br>
+        <a href="${enlace}" target="_blank">${enlace}</a><br><br>
+        <button id="copiarEnlace">📋 Copiar enlace</button>
+        <p id="mensajeCopiado">✅ Enlace copiado</p>
+      `;
+      resultadoDiv.style.display = "block";
+
+      document.getElementById("copiarEnlace").addEventListener("click", () => {
+        navigator.clipboard.writeText(enlace).then(() => {
+          const mensaje = document.getElementById("mensajeCopiado");
+          mensaje.style.display = "block";
+          setTimeout(() => {
+            mensaje.style.display = "none";
+          }, 2000);
+        });
+      });
+    } catch (e) {
+      console.error("Error al guardar la nota:", e);
+      alert("Ocurrió un error al guardar la nota.");
+    }
+  });
+    // 🌙 Modo oscuro
+  const btnModo = document.getElementById("modoOscuroBtn");
+  const estadoGuardado = localStorage.getItem("modoOscuro");
+  if (estadoGuardado === "true") {
+    document.body.classList.add("dark");
+    btnModo.textContent = "☀️";
+  }
+
+  btnModo.addEventListener("click", () => {
+    document.body.classList.toggle("dark");
+    const oscuro = document.body.classList.contains("dark");
+    localStorage.setItem("modoOscuro", oscuro);
+    btnModo.textContent = oscuro ? "☀️" : "🌙";
+  });
+</script>
 </body>
 </html>
